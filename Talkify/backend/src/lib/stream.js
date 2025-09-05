@@ -1,7 +1,6 @@
 import {StreamChat} from "stream-chat";
 import "dotenv/config";
-import { asyncHandler } from "../asyncHandler";
-import { ApiError } from "../APIerror";
+import { ApiError } from "../utils/APIerror.js";
 
 const apiKey = process.env.STREAM_API_KEY;
 const apiSecret = process.env.STREAM_API_SECRET; 
