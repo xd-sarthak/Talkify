@@ -251,7 +251,7 @@ export const login = asyncHandler(async (req, res) => {
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-      user._id
+      user
     );
 
     const loggedInUser = await User.findById(user._id).select(
@@ -309,30 +309,23 @@ export const login = asyncHandler(async (req, res) => {
  *               $ref: '#/components/schemas/ApiError'
  */
 export const logout = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized - No user context" });
+  }
+
   await User.findByIdAndUpdate(
     req.user._id,
-    {
-      $set: {
-        refreshToken: undefined,
-      },
-    },
-    {
-      new: true,
-    }
+    { $unset: { refreshToken: 1 } },  // or $set: { refreshToken: null }
+    { new: true }
   );
-
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  };
 
   return res
     .status(200)
     .clearCookie("accessToken")
     .clearCookie("refreshToken")
-    .json(new ApiResponse(200, {}, "user logged out"));
+    .json(new ApiResponse(200, {}, "User logged out"));
 });
+
 
 /**
  * @swagger
@@ -372,6 +365,49 @@ export const logout = asyncHandler(async (req, res) => {
 export const onboarding = asyncHandler(async (req, res) => {
   try {
     const { fullName, bio, nativeLanguage, learningLanguage, location } = req.body;
+    const userId = req.user._id.toString();
+
+    if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
+      throw new ApiError(400, "All fields are required");
+    }
+
+    const updateFields = {
+      fullName,
+      bio,
+      nativeLanguage,
+      learningLanguage,
+      location,
+      isOnboarded: true
+    };
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateFields,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      throw new ApiError(404, "User not found");
+    }
+
+    try {
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || ""
+      });
+      console.log(`stream user created for ${fullName}`);
+    } catch (error) {
+      console.error("Error upserting stream user:", error);
+      throw new ApiError(500, "Error upserting stream user");
+    }
+
+    console.log("Updated User:", updatedUser);
+
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { user: updatedUser }, "User onboarded successfully"));
   } catch (error) {
     console.error("Error onboarding user:", error);
     throw new ApiError(500, "Error onboarding user");

@@ -8,7 +8,7 @@ router.post("/signup",signup);
 
 router.post("/login", login);
 
-router.post("/logout", logout);
+router.post("/logout", protectRoute, logout);
 
 router.post("/onboarding", protectRoute, onboarding);
 

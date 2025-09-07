@@ -33,7 +33,7 @@ import { ApiError } from "../utils/APIerror.js";
  */
 export const getStreamToken = asyncHandler(async (req, res) => {
     try {
-        const { userId } = req.user;
+        const userId = req.user._id;
         const token = generateStreamToken(userId);
         res.status(200).json({ success: true, token });
     } catch (error) {
